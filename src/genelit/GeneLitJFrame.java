@@ -7,6 +7,7 @@ package genelit;
 
 import java.awt.Component;
 import java.awt.Desktop;
+import java.awt.event.MouseEvent;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.net.URI;
@@ -31,6 +32,7 @@ import java.util.logging.Logger;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
 import javax.swing.JList;
+import javax.swing.SwingWorker;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 
@@ -46,6 +48,13 @@ public class GeneLitJFrame extends javax.swing.JFrame {
     public Properties prefs;
     public Long SGD_Lit_date;
     public HashMap<String, ArrayList<String>> geneLists;
+    public HashMap<String, ArrayList<Integer>> readPapers;
+
+    private static final String READ_PAPERS_ = "ReadPapers_";
+    private static final String SGD_FEATURESTAB = "SGD_features.tab";
+    private static final String GENE_LIST_ = "GeneList_";
+
+    public updateJFrame ujf;
 
     /**
      * Creates new form GeneLitJFrame
@@ -60,6 +69,7 @@ public class GeneLitJFrame extends javax.swing.JFrame {
         orfList = new HashMap<String, String>();
         prefs = new Properties();
         geneLists = new HashMap<String, ArrayList<String>>();
+        readPapers = new HashMap<String, ArrayList<Integer>>();
 
         BufferedInputStream in;
         try {
@@ -78,13 +88,22 @@ public class GeneLitJFrame extends javax.swing.JFrame {
         jComboBox1.removeAllItems();
 
         for (String p : prefs.stringPropertyNames()) {
-            if (p.startsWith("GeneList")) {
+            if (p.startsWith(GENE_LIST_)) {
                 String pg = prefs.getProperty(p);
                 ArrayList<String> genes = new ArrayList<String>();
                 genes.addAll(Arrays.asList(pg.split(";")));
                 geneLists.put(p.substring(9), genes);
                 jComboBox1.addItem(p.substring(9));
-                System.out.println(geneLists.toString());
+            } else if (p.startsWith(READ_PAPERS_)) {
+                String pg = prefs.getProperty(p, "");
+                if (!pg.isEmpty()) {
+                    ArrayList<Integer> paps = new ArrayList<Integer>();
+                    for (String ss : pg.split(";")) {
+                        Integer ii = Integer.parseInt(ss);
+                        paps.add(ii);
+                    }
+                    readPapers.put(p.substring(11), paps);
+                }
             }
         }
 
@@ -92,98 +111,9 @@ public class GeneLitJFrame extends javax.swing.JFrame {
             jComboBox1.addItem("Default");
         }
 
-        try {
-            URL u = new URL("http://downloads.yeastgenome.org/curation/literature/gene_literature.tab");
-            try {
-                HttpURLConnection huc = (HttpURLConnection) u.openConnection();
-                long date = huc.getLastModified();
-                if (date == 0) {
-                    System.out.println("No last-modified information.");
-                } else {
-                    System.out.println("Last-Modified: " + new Date(date));
-                }
+        ujf = new updateJFrame();
 
-                if (date > SGD_Lit_date) {
-                    System.out.println("File needs to be updated");
-                    final String filename = "gene_literature.tab";
-
-                    in = new BufferedInputStream(u.openStream());
-
-                    byte b[] = new byte[16384];
-
-                    FileOutputStream fos = new FileOutputStream(filename);
-                    int bytesread;
-                    while ((bytesread = in.read(b)) > -1) {
-                        fos.write(b, 0, bytesread);
-
-                        b = new byte[16384];
-                    }
-
-                    in.close();
-                    fos.flush();
-                    fos.close();
-
-                    SGD_Lit_date = date;
-                    prefs.setProperty("SGD_Lit_date", SGD_Lit_date.toString());
-                    savePrefs();
-                }
-
-            } catch (IOException ex) {
-                Logger.getLogger(GeneLitJFrame.class.getName()).log(Level.SEVERE, null, ex);
-            }
-
-        } catch (MalformedURLException ex) {
-            Logger.getLogger(GeneLitJFrame.class.getName()).log(Level.SEVERE, null, ex);
-        }
-
-        File f = new File("gene_literature.tab");
-        if (f.exists()) {
-            try {
-                BufferedReader bin = new BufferedReader(new FileReader(f));
-                String t;
-                while ((t = bin.readLine()) != null) {
-                    String[] sg = t.split("\t");
-                    if (!sg[0].isEmpty() && sg.length > 3) {
-                        String orf = sg[3];
-                        String spub = sg[0];
-                        Integer ipub = Integer.parseInt(spub);
-                        ArrayList<Integer> pubs2 = new ArrayList<Integer>();
-                        if (!geneMap.keySet().contains(orf)) {
-                            pubs2.add(ipub);
-                        } else {
-                            pubs2 = geneMap.get(orf);
-                            pubs2.add(ipub);
-                        }
-                        geneMap.put(orf, pubs2);
-
-                        if (!pubs.keySet().contains(ipub)) {
-                            pubs.put(ipub, sg[1]);
-                        }
-
-                    }
-
-                }
-            } catch (IOException e) {
-                System.out.println(e.getLocalizedMessage());
-            }
-        }
-
-        f = new File("SGD_features.tab");
-        if (f.exists()) {
-            try {
-                BufferedReader bin = new BufferedReader(new FileReader(f));
-                String t;
-                while ((t = bin.readLine()) != null) {
-                    String[] sg = t.split("\t");
-                    if (sg.length > 4 && !sg[3].isEmpty()) {
-                        orfList.put(sg[3], sg[4]);
-                    }
-
-                }
-            } catch (IOException e) {
-                System.out.println(e.getLocalizedMessage());
-            }
-        }
+        new fileUpdater().execute();
 
     }
 
@@ -199,7 +129,23 @@ public class GeneLitJFrame extends javax.swing.JFrame {
         jScrollPane1 = new javax.swing.JScrollPane();
         jList1 = new javax.swing.JList();
         jScrollPane2 = new javax.swing.JScrollPane();
-        jTable1 = new javax.swing.JTable();
+        jTable1 = new javax.swing.JTable() {
+            public String getToolTipText(MouseEvent e) {
+                String tip = null;
+                java.awt.Point p = e.getPoint();
+                int rowIndex = rowAtPoint(p);
+                int colIndex = columnAtPoint(p);
+
+                try {
+                    tip = getValueAt(rowIndex, 2).toString();
+                } catch (RuntimeException e1) {
+                    //catch null pointer exception if mouse is over an empty line
+                }
+
+                return tip;
+            }
+
+        };
         jButton2 = new javax.swing.JButton();
         jButton3 = new javax.swing.JButton();
         jTextField1 = new javax.swing.JTextField();
@@ -207,8 +153,12 @@ public class GeneLitJFrame extends javax.swing.JFrame {
         jLabel1 = new javax.swing.JLabel();
         jButton1 = new javax.swing.JButton();
         jButton4 = new javax.swing.JButton();
+        jButton5 = new javax.swing.JButton();
+        jButton6 = new javax.swing.JButton();
+        jButton7 = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setTitle("GeneLit");
 
         jList1.addListSelectionListener(new javax.swing.event.ListSelectionListener() {
             public void valueChanged(javax.swing.event.ListSelectionEvent evt) {
@@ -262,27 +212,51 @@ public class GeneLitJFrame extends javax.swing.JFrame {
 
         jButton4.setText("Delete");
 
+        jButton5.setText("Catch-up all listed");
+        jButton5.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton5ActionPerformed(evt);
+            }
+        });
+
+        jButton6.setText("Catch-up selected (toggle)");
+        jButton6.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton6ActionPerformed(evt);
+            }
+        });
+
+        jButton7.setText("Mark as new all listed");
+        jButton7.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton7ActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addComponent(jButton2, javax.swing.GroupLayout.DEFAULT_SIZE, 53, Short.MAX_VALUE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jButton2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jButton3))
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
-                    .addComponent(jTextField1, javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(jComboBox1, javax.swing.GroupLayout.Alignment.TRAILING, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jLabel1)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE)
+                    .addComponent(jTextField1)
+                    .addComponent(jComboBox1, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jLabel1, javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(layout.createSequentialGroup()
                         .addComponent(jButton1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(jButton4)))
+                        .addComponent(jButton4))
+                    .addComponent(jButton6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jButton5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jButton7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 606, Short.MAX_VALUE)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 575, Short.MAX_VALUE)
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -308,6 +282,12 @@ public class GeneLitJFrame extends javax.swing.JFrame {
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jButton2, javax.swing.GroupLayout.PREFERRED_SIZE, 23, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(jButton3))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jButton6)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jButton5)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jButton7)
                         .addGap(0, 0, Short.MAX_VALUE)))
                 .addContainerGap())
         );
@@ -368,7 +348,7 @@ public class GeneLitJFrame extends javax.swing.JFrame {
                 sb.append(ss).append(";");
             }
 
-            prefs.setProperty("GeneList_" + glist, sb.toString());
+            prefs.setProperty(GENE_LIST_ + glist, sb.toString());
             savePrefs();
 
         }
@@ -379,17 +359,40 @@ public class GeneLitJFrame extends javax.swing.JFrame {
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
+        String glist = jComboBox1.getSelectedItem().toString();
         DefaultListModel slm = (DefaultListModel) jList1.getModel();
         List vals = jList1.getSelectedValuesList();
-        for (Object o : vals) {
-            slm.removeElement(o);
+
+        if (vals.size() > 0) {
+
+            ArrayList<String> genes = geneLists.get(glist);
+            for (Object o : vals) {
+                slm.removeElement(o);
+                genes.remove(o.toString());
+            }
+
+            geneLists.put(glist, genes);
+
+            jList1.setModel(slm);
+            jList1.setCellRenderer(new myCellRenderer());
+
+            StringBuilder sb = new StringBuilder();
+            for (String ss : genes) {
+                sb.append(ss).append(";");
+            }
+            prefs.setProperty(GENE_LIST_ + glist, sb.toString());
+
+            savePrefs();
         }
-        jList1.setModel(slm);
-        jList1.setCellRenderer(new myCellRenderer());
 
     }//GEN-LAST:event_jButton3ActionPerformed
 
+
     private void jList1ValueChanged(javax.swing.event.ListSelectionEvent evt) {//GEN-FIRST:event_jList1ValueChanged
+        updateTable();
+    }
+
+    public void updateTable() {
 
         int[] sels = jList1.getSelectedIndices();
         DefaultListModel dlm = (DefaultListModel) jList1.getModel();
@@ -402,23 +405,31 @@ public class GeneLitJFrame extends javax.swing.JFrame {
             j += geneMap.get(s).size();
         }
 
-        Object[][] tabdata = new Object[j][3];
+        Object[][] tabdata = new Object[j][4];
 
         for (int i : sels) {
 
             String s = dlm.getElementAt(i).toString();
-
             ArrayList<Integer> pubs2 = geneMap.get(s);
 
             for (Integer ii : pubs2) {
+                String newp = "New";
+                ArrayList<Integer> rps = readPapers.get(s);
+                if (rps != null) {
+                    if (rps.contains(ii)) {
+                        newp = "Old";
+                    }
+                }
+
                 tabdata[cnt][0] = s;
                 tabdata[cnt][1] = ii;
                 tabdata[cnt][2] = pubs.get(ii);
+                tabdata[cnt][3] = newp;
                 cnt++;
             }
         }
 
-        String[] colNames = {"Gene", "ID", "Title"};
+        String[] colNames = {"Gene", "ID", "Title", "New?"};
         DefaultTableModel tab = new DefaultTableModel(tabdata, colNames) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -466,6 +477,94 @@ public class GeneLitJFrame extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_jComboBox1ActionPerformed
 
+    private void jButton5ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton5ActionPerformed
+        for (int i = 0; i < jTable1.getRowCount(); i++) {
+            String orf = jTable1.getValueAt(i, 0).toString();
+            Integer pmid = (Integer) jTable1.getValueAt(i, 1);
+
+            ArrayList<Integer> rps = new ArrayList<Integer>();
+
+            if (readPapers.keySet().contains(orf)) {
+                rps = readPapers.get(orf);
+            }
+
+            if (!rps.contains(pmid)) {
+                rps.add(pmid);
+            }
+
+            readPapers.put(orf, rps);
+
+        }
+        updateReadList();
+        updateTable();
+    }//GEN-LAST:event_jButton5ActionPerformed
+
+    private void jButton7ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton7ActionPerformed
+        for (int i = 0; i < jTable1.getRowCount(); i++) {
+            System.out.println("i: " + i);
+            String orf = jTable1.getValueAt(i, 0).toString();
+            Integer pmid = (Integer) jTable1.getValueAt(i, 1);
+
+            ArrayList<Integer> rps = new ArrayList<Integer>();
+
+            if (readPapers.keySet().contains(orf)) {
+                rps = readPapers.get(orf);
+            }
+
+            if (rps.contains(pmid)) {
+                rps.remove(pmid);
+            }
+
+            readPapers.put(orf, rps);
+
+        }
+        updateReadList();
+        updateTable();
+    }//GEN-LAST:event_jButton7ActionPerformed
+
+    private void jButton6ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton6ActionPerformed
+        int[] sel = jTable1.getSelectedRows();
+        if (sel.length > 0) {
+            System.out.println(Arrays.toString(sel));
+            Arrays.sort(sel);
+            for (int i = 0; i < jTable1.getRowCount(); i++) {
+                if (Arrays.binarySearch(sel, i) > -1) {
+                    System.out.println("i: " + i);
+                    String orf = jTable1.getValueAt(i, 0).toString();
+                    Integer pmid = (Integer) jTable1.getValueAt(i, 1);
+
+                    ArrayList<Integer> rps = new ArrayList<Integer>();
+
+                    if (readPapers.keySet().contains(orf)) {
+                        rps = readPapers.get(orf);
+                    }
+
+                    if (rps.contains(pmid)) {
+                        rps.remove(pmid);
+                    } else {
+                        rps.add(pmid);
+                    }
+
+                    readPapers.put(orf, rps);
+
+                }
+            }
+        }
+        updateReadList();
+        updateTable();
+    }//GEN-LAST:event_jButton6ActionPerformed
+
+    public void updateReadList() {
+        for (String s : readPapers.keySet()) {
+            StringBuilder sb = new StringBuilder();
+            for (Integer ii : readPapers.get(s)) {
+                sb.append(ii.toString()).append(";");
+            }
+            prefs.setProperty(READ_PAPERS_ + s, sb.toString());
+        }
+        savePrefs();
+    }
+
     /**
      * @param args the command line arguments
      */
@@ -475,22 +574,22 @@ public class GeneLitJFrame extends javax.swing.JFrame {
         /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
          * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
          */
-        try {
-            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
-        } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(GeneLitJFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(GeneLitJFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(GeneLitJFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(GeneLitJFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-        }
+//        try {
+//            for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+//                if ("Nimbus".equals(info.getName())) {
+//                    javax.swing.UIManager.setLookAndFeel(info.getClassName());
+//                    break;
+//                }
+//            }
+//        } catch (ClassNotFoundException ex) {
+//            java.util.logging.Logger.getLogger(GeneLitJFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//        } catch (InstantiationException ex) {
+//            java.util.logging.Logger.getLogger(GeneLitJFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//        } catch (IllegalAccessException ex) {
+//            java.util.logging.Logger.getLogger(GeneLitJFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//        } catch (javax.swing.UnsupportedLookAndFeelException ex) {
+//            java.util.logging.Logger.getLogger(GeneLitJFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+//        }
         //</editor-fold>
 
         /* Create and display the form */
@@ -513,11 +612,187 @@ public class GeneLitJFrame extends javax.swing.JFrame {
         }
     }
 
+    public class fileUpdater extends SwingWorker<String, Void> {
+
+        @Override
+        protected String doInBackground() throws Exception {
+            try {
+                URL u = new URL("http://downloads.yeastgenome.org/curation/literature/gene_literature.tab");
+                try {
+                    HttpURLConnection huc = (HttpURLConnection) u.openConnection();
+                    long date = huc.getLastModified();
+                    if (date == 0) {
+                        System.out.println("No last-modified information.");
+                    } else {
+                        System.out.println("Last-Modified: " + new Date(date));
+                    }
+
+                    File f = new File(GENE_LITERATURETAB);
+
+                    if (date > SGD_Lit_date || !f.exists()) {
+                        ujf.setVisible(true);
+                        System.out.println("File needs to be updated");
+                        new sgdUpdater().execute();
+                        final String filename = GENE_LITERATURETAB;
+
+                        BufferedInputStream in = new BufferedInputStream(u.openStream());
+                        long sz = u.openConnection().getContentLengthLong();
+
+                        byte b[] = new byte[16384];
+
+                        FileOutputStream fos = new FileOutputStream(filename);
+                        int bytesread;
+                        int cnt = 0;
+                        long total = 0;
+                        while ((bytesread = in.read(b)) > -1) {
+                            fos.write(b, 0, bytesread);
+
+                            b = new byte[16384];
+                            if (cnt == 10) {
+                                ujf.setProgress((int) (100 * total / sz));
+                                cnt = 0;
+                            }
+                            cnt++;
+                            total += bytesread;
+                        }
+                        
+                        ujf.setProgress(100);
+
+                        in.close();
+                        fos.flush();
+                        fos.close();
+
+                        SGD_Lit_date = date;
+                        prefs.setProperty("SGD_Lit_date", SGD_Lit_date.toString());
+                        savePrefs();
+                    } else {
+                        updatedatafiles2();
+                        jList1.repaint();
+                    }
+
+                } catch (IOException ex) {
+                    Logger.getLogger(GeneLitJFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }
+
+            } catch (MalformedURLException ex) {
+                Logger.getLogger(GeneLitJFrame.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
+            if (ujf != null) {
+                ujf.dispose();
+            }
+
+            updateDataFiles();
+            jList1.repaint();
+
+            return "";
+        }
+
+    }
+
+    public class sgdUpdater extends SwingWorker<String, Void> {
+
+        @Override
+        protected String doInBackground() throws Exception {
+            URL u = new URL("http://downloads.yeastgenome.org/curation/chromosomal_feature/SGD_features.tab");
+            BufferedInputStream in = new BufferedInputStream(u.openStream());
+            long sz = u.openConnection().getContentLengthLong();
+
+            byte b[] = new byte[16384];
+            final String filename = SGD_FEATURESTAB;
+            FileOutputStream fos = new FileOutputStream(filename);
+            int bytesread;
+            int cnt = 0;
+            long total = 0;
+            while ((bytesread = in.read(b)) > -1) {
+                fos.write(b, 0, bytesread);
+
+                b = new byte[16384];
+                if (cnt == 10) {
+                    ujf.setProgress2((int) (100 * total / sz));
+                    cnt = 0;
+                }
+                cnt++;
+                total += bytesread;
+            }
+            ujf.setProgress2(100);
+
+            in.close();
+            fos.flush();
+            fos.close();
+            updatedatafiles2();
+            jList1.repaint();
+            return "";
+        }
+
+    }
+
+    private static final String GENE_LITERATURETAB = "gene_literature.tab";
+
+    public void updateDataFiles() {
+        File f = new File(GENE_LITERATURETAB);
+        if (f.exists()) {
+            try {
+                BufferedReader bin = new BufferedReader(new FileReader(f));
+                String t;
+                while ((t = bin.readLine()) != null) {
+                    String[] sg = t.split("\t");
+                    if (!sg[0].isEmpty() && sg.length > 3) {
+                        String orf = sg[3];
+                        String spub = sg[0];
+                        Integer ipub = Integer.parseInt(spub);
+                        ArrayList<Integer> pubs2 = new ArrayList<Integer>();
+                        if (!geneMap.keySet().contains(orf)) {
+                            pubs2.add(ipub);
+                        } else {
+                            pubs2 = geneMap.get(orf);
+                            pubs2.add(ipub);
+                        }
+                        geneMap.put(orf, pubs2);
+
+                        if (!pubs.keySet().contains(ipub)) {
+                            pubs.put(ipub, sg[1]);
+                        }
+
+                    }
+
+                }
+            } catch (IOException e) {
+                System.out.println(e.getLocalizedMessage());
+            }
+        }
+        
+    }
+    
+    public void updatedatafiles2() {
+
+        File f = new File(SGD_FEATURESTAB);
+        if (f.exists()) {
+            try {
+                BufferedReader bin = new BufferedReader(new FileReader(f));
+                String t;
+                while ((t = bin.readLine()) != null) {
+                    String[] sg = t.split("\t");
+                    if (sg.length > 4 && !sg[3].isEmpty()) {
+                        orfList.put(sg[3], sg[4]);
+                    }
+
+                }
+            } catch (IOException e) {
+                System.out.println(e.getLocalizedMessage());
+            }
+        }
+    }
+
+
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton jButton1;
     private javax.swing.JButton jButton2;
     private javax.swing.JButton jButton3;
     private javax.swing.JButton jButton4;
+    private javax.swing.JButton jButton5;
+    private javax.swing.JButton jButton6;
+    private javax.swing.JButton jButton7;
     private javax.swing.JComboBox jComboBox1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JList jList1;
