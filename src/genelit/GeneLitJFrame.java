@@ -7,6 +7,7 @@ package genelit;
 
 import java.awt.Component;
 import java.awt.Desktop;
+import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -29,11 +30,17 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
 import javax.swing.JList;
+import javax.swing.JTable;
 import javax.swing.SwingWorker;
+import javax.swing.Timer;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableRowSorter;
 
 /**
@@ -113,8 +120,54 @@ public class GeneLitJFrame extends javax.swing.JFrame {
 
         ujf = new updateJFrame();
 
-        new fileUpdater().execute();
+        Action updateCheck = new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                System.out.println("Timer running");
+                if (needUpdate()) {
+                    new fileUpdater().execute();
+                }
+            }
+        };
 
+        Timer t = new Timer(3600000, updateCheck);
+        t.start();
+
+        if (needUpdate()) {
+            new fileUpdater().execute();
+        } else {
+            updateDataFiles();
+            updatedatafiles2();
+        }
+
+    }
+
+    private boolean needUpdate() {
+        try {
+            URL u = new URL("http://downloads.yeastgenome.org/curation/literature/gene_literature.tab");
+            try {
+                HttpURLConnection huc = (HttpURLConnection) u.openConnection();
+                long date = huc.getLastModified();
+                if (date == 0) {
+                    System.out.println("No last-modified information.");
+                } else {
+                    System.out.println("Last-Modified: " + new Date(date));
+                }
+
+                File f = new File(GENE_LITERATURETAB);
+
+                if (date > SGD_Lit_date || !f.exists()) {
+                    ujf.setVisible(true);
+                    System.out.println("File needs to be updated");
+                    return true;
+                }
+            } catch (IOException ex) {
+                System.out.println(ex.getLocalizedMessage());
+            }
+        } catch (MalformedURLException ex) {
+            Logger.getLogger(GeneLitJFrame.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return false;
     }
 
     /**
@@ -145,6 +198,12 @@ public class GeneLitJFrame extends javax.swing.JFrame {
                 return tip;
             }
 
+            public TableCellRenderer getCellRenderer(int row, int column) {
+
+                TableCellRenderer t=new myRenderer(row,column);
+                return t;
+            }
+
         };
         jButton2 = new javax.swing.JButton();
         jButton3 = new javax.swing.JButton();
@@ -169,13 +228,10 @@ public class GeneLitJFrame extends javax.swing.JFrame {
 
         jTable1.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
-                {null, null, null},
-                {null, null, null},
-                {null, null, null},
-                {null, null, null}
+                {null, null, null, null}
             },
             new String [] {
-                "Title 1", "Title 2", "Title 3"
+                "Gene", "PMID", "Title", "New?"
             }
         ));
         jTable1.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -299,17 +355,19 @@ public class GeneLitJFrame extends javax.swing.JFrame {
 
         @Override
         public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-            String s;
-
-            if (orfList.keySet().contains(value.toString()) && !orfList.get(value.toString()).isEmpty()) {
-                s = orfList.get(value.toString()) + " (" + value.toString() + ")";
-            } else {
-                s = value.toString();
-            }
+            String s = orfString(value.toString());
 
             Component c = super.getListCellRendererComponent(list, s, index, isSelected, cellHasFocus);
 
             return c;
+        }
+    }
+
+    public String orfString(String orf) {
+        if (orfList.keySet().contains(orf) && !orfList.get(orf).isEmpty()) {
+            return orfList.get(orf) + " (" + orf + ")";
+        } else {
+            return orf;
         }
     }
 
@@ -621,54 +679,43 @@ public class GeneLitJFrame extends javax.swing.JFrame {
                 try {
                     HttpURLConnection huc = (HttpURLConnection) u.openConnection();
                     long date = huc.getLastModified();
-                    if (date == 0) {
-                        System.out.println("No last-modified information.");
-                    } else {
-                        System.out.println("Last-Modified: " + new Date(date));
-                    }
 
-                    File f = new File(GENE_LITERATURETAB);
+                    ujf.setVisible(true);
+                    System.out.println("File needs to be updated");
+                    setEnabled(false);
+                    new sgdUpdater().execute();
+                    final String filename = GENE_LITERATURETAB;
 
-                    if (date > SGD_Lit_date || !f.exists()) {
-                        ujf.setVisible(true);
-                        System.out.println("File needs to be updated");
-                        new sgdUpdater().execute();
-                        final String filename = GENE_LITERATURETAB;
+                    BufferedInputStream in = new BufferedInputStream(u.openStream());
+                    long sz = u.openConnection().getContentLengthLong();
 
-                        BufferedInputStream in = new BufferedInputStream(u.openStream());
-                        long sz = u.openConnection().getContentLengthLong();
+                    byte b[] = new byte[16384];
 
-                        byte b[] = new byte[16384];
+                    FileOutputStream fos = new FileOutputStream(filename);
+                    int bytesread;
+                    int cnt = 0;
+                    long total = 0;
+                    while ((bytesread = in.read(b)) > -1) {
+                        fos.write(b, 0, bytesread);
 
-                        FileOutputStream fos = new FileOutputStream(filename);
-                        int bytesread;
-                        int cnt = 0;
-                        long total = 0;
-                        while ((bytesread = in.read(b)) > -1) {
-                            fos.write(b, 0, bytesread);
-
-                            b = new byte[16384];
-                            if (cnt == 10) {
-                                ujf.setProgress((int) (100 * total / sz));
-                                cnt = 0;
-                            }
-                            cnt++;
-                            total += bytesread;
+                        b = new byte[16384];
+                        if (cnt == 32) {
+                            ujf.setProgress((int) (100 * total / sz));
+                            cnt = 0;
                         }
-                        
-                        ujf.setProgress(100);
-
-                        in.close();
-                        fos.flush();
-                        fos.close();
-
-                        SGD_Lit_date = date;
-                        prefs.setProperty("SGD_Lit_date", SGD_Lit_date.toString());
-                        savePrefs();
-                    } else {
-                        updatedatafiles2();
-                        jList1.repaint();
+                        cnt++;
+                        total += bytesread;
                     }
+
+                    ujf.setProgress(100);
+
+                    in.close();
+                    fos.flush();
+                    fos.close();
+
+                    SGD_Lit_date = date;
+                    prefs.setProperty("SGD_Lit_date", SGD_Lit_date.toString());
+                    savePrefs();
 
                 } catch (IOException ex) {
                     Logger.getLogger(GeneLitJFrame.class.getName()).log(Level.SEVERE, null, ex);
@@ -681,6 +728,9 @@ public class GeneLitJFrame extends javax.swing.JFrame {
             if (ujf != null) {
                 ujf.dispose();
             }
+
+            setEnabled(true);
+            setVisible(true);
 
             updateDataFiles();
             jList1.repaint();
@@ -724,12 +774,11 @@ public class GeneLitJFrame extends javax.swing.JFrame {
             jList1.repaint();
             return "";
         }
-
     }
 
     private static final String GENE_LITERATURETAB = "gene_literature.tab";
 
-    public void updateDataFiles() {
+    private void updateDataFiles() {
         File f = new File(GENE_LITERATURETAB);
         if (f.exists()) {
             try {
@@ -761,10 +810,10 @@ public class GeneLitJFrame extends javax.swing.JFrame {
                 System.out.println(e.getLocalizedMessage());
             }
         }
-        
+
     }
-    
-    public void updatedatafiles2() {
+
+    private void updatedatafiles2() {
 
         File f = new File(SGD_FEATURESTAB);
         if (f.exists()) {
@@ -782,6 +831,78 @@ public class GeneLitJFrame extends javax.swing.JFrame {
                 System.out.println(e.getLocalizedMessage());
             }
         }
+    }
+
+    public class myRenderer extends DefaultTableCellRenderer {
+
+        int r, c;
+
+        public myRenderer(int row, int col) {
+            super();
+            r = row;
+            c = col;
+            setOpaque(true);
+        }
+
+        public void setAl(int al) {
+            setHorizontalAlignment(al);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+
+            try {
+                super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+            } catch (Exception e) {
+                System.out.println(e.getLocalizedMessage());
+            }
+
+            if (column == 0 && value != null) {
+                setText(orfString(value.toString()));
+            }
+
+            if (jTable1.getValueAt(row, 3) == "New") {
+                setForeground(java.awt.Color.green.darker());
+            }
+
+            return this;
+        }
+
+//        @Override
+//        @SuppressWarnings("unchecked")
+//        public void setValue(Object value) {
+//
+//            if (value == null) {
+//                return;
+//            }
+//
+//            if (c == COL_INDEX) {
+//                setForeground(Color.white);
+//                setBackground(Color.black);
+//                setText("#");
+//            }
+//
+//            if (value instanceof Double) {
+//                NumberFormat nf = NumberFormat.getNumberInstance();
+//                nf.setMaximumFractionDigits(4);
+//                setText(nf.format(value));
+//            } else if (value.getClass().equals(new TreeSet<String>().getClass())) {
+//                StringBuilder outString = new StringBuilder();
+//
+//                for (String s : (TreeSet<String>) value) {
+//                    outString.append(s).append(", ");
+//                }
+//
+//                if (outString.length() > 2) {
+//                    setText(outString.substring(0, outString.length() - 2));
+//                }
+//            } else {
+//                setText(value.toString());
+//            }
+//
+//        }
     }
 
 

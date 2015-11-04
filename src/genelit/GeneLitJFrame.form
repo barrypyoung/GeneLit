@@ -120,10 +120,11 @@
         <Component class="javax.swing.JTable" name="jTable1">
           <Properties>
             <Property name="model" type="javax.swing.table.TableModel" editor="org.netbeans.modules.form.editors2.TableModelEditor">
-              <Table columnCount="3" rowCount="4">
-                <Column editable="true" title="Title 1" type="java.lang.Object"/>
-                <Column editable="true" title="Title 2" type="java.lang.Object"/>
-                <Column editable="true" title="Title 3" type="java.lang.Object"/>
+              <Table columnCount="4" rowCount="1">
+                <Column editable="true" title="Gene" type="java.lang.Object"/>
+                <Column editable="true" title="PMID" type="java.lang.Object"/>
+                <Column editable="true" title="Title" type="java.lang.Object"/>
+                <Column editable="true" title="New?" type="java.lang.Object"/>
               </Table>
             </Property>
           </Properties>
@@ -131,7 +132,7 @@
             <EventHandler event="mouseClicked" listener="java.awt.event.MouseListener" parameters="java.awt.event.MouseEvent" handler="jTable1MouseClicked"/>
           </Events>
           <AuxValues>
-            <AuxValue name="JavaCodeGenerator_CreateCodeCustom" type="java.lang.String" value="new javax.swing.JTable() {&#xa;            public String getToolTipText(MouseEvent e) {&#xa;                String tip = null;&#xa;                java.awt.Point p = e.getPoint();&#xa;                int rowIndex = rowAtPoint(p);&#xa;                int colIndex = columnAtPoint(p);&#xa;&#xa;                try {&#xa;                    tip = getValueAt(rowIndex, 2).toString();&#xa;                } catch (RuntimeException e1) {&#xa;                    //catch null pointer exception if mouse is over an empty line&#xa;                }&#xa;&#xa;                return tip;&#xa;            }&#xa;&#xa;&#xa;}"/>
+            <AuxValue name="JavaCodeGenerator_CreateCodeCustom" type="java.lang.String" value="new javax.swing.JTable() {&#xa;    public String getToolTipText(MouseEvent e) {&#xa;        String tip = null;&#xa;        java.awt.Point p = e.getPoint();&#xa;        int rowIndex = rowAtPoint(p);&#xa;        int colIndex = columnAtPoint(p);&#xa;&#xa;        try {&#xa;            tip = getValueAt(rowIndex, 2).toString();&#xa;        } catch (RuntimeException e1) {&#xa;            //catch null pointer exception if mouse is over an empty line&#xa;        }&#xa;&#xa;        return tip;&#xa;    }&#xa;&#xa;    public TableCellRenderer getCellRenderer(int row, int column) {&#xa;&#xa;        TableCellRenderer t=new myRenderer(row,column);&#xa;        return t;&#xa;    }&#xa;&#xa;}"/>
           </AuxValues>
         </Component>
       </SubComponents>

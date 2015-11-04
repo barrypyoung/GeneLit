@@ -36,7 +36,12 @@ public class updateJFrame extends javax.swing.JFrame {
         setAlwaysOnTop(true);
         setModalExclusionType(java.awt.Dialog.ModalExclusionType.APPLICATION_EXCLUDE);
 
+        jProgressBar1.setStringPainted(true);
+
         jLabel1.setText("Updating, please wait.");
+
+        jProgressBar2.setFont(jProgressBar2.getFont());
+        jProgressBar2.setStringPainted(true);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
