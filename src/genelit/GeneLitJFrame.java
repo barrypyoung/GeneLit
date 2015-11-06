@@ -8,6 +8,7 @@ package genelit;
 import java.awt.Component;
 import java.awt.Desktop;
 import java.awt.event.ActionEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -30,17 +32,24 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javafx.scene.input.KeyCode;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
+import javax.swing.DefaultRowSorter;
 import javax.swing.JList;
 import javax.swing.JTable;
+import javax.swing.RowSorter;
+import javax.swing.RowSorter.SortKey;
+import javax.swing.SortOrder;
 import javax.swing.SwingWorker;
 import javax.swing.Timer;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumnModel;
+import javax.swing.table.TableModel;
 import javax.swing.table.TableRowSorter;
 
 /**
@@ -140,6 +149,13 @@ public class GeneLitJFrame extends javax.swing.JFrame {
             updatedatafiles2();
         }
 
+        jList1.setSelectedIndex(0);
+        ArrayList<SortKey> list = new ArrayList<SortKey>();
+        list.add(new RowSorter.SortKey(3, SortOrder.ASCENDING));
+        list.add(new RowSorter.SortKey(1, SortOrder.DESCENDING));
+
+        jTable1.getRowSorter().setSortKeys(list);
+
     }
 
     private boolean needUpdate() {
@@ -215,6 +231,7 @@ public class GeneLitJFrame extends javax.swing.JFrame {
         jButton5 = new javax.swing.JButton();
         jButton6 = new javax.swing.JButton();
         jButton7 = new javax.swing.JButton();
+        jButton8 = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setTitle("GeneLit");
@@ -228,10 +245,10 @@ public class GeneLitJFrame extends javax.swing.JFrame {
 
         jTable1.setModel(new javax.swing.table.DefaultTableModel(
             new Object [][] {
-                {null, null, null, null}
+
             },
             new String [] {
-                "Gene", "PMID", "Title", "New?"
+
             }
         ));
         jTable1.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -252,6 +269,12 @@ public class GeneLitJFrame extends javax.swing.JFrame {
         jButton3.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
                 jButton3ActionPerformed(evt);
+            }
+        });
+
+        jTextField1.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyReleased(java.awt.event.KeyEvent evt) {
+                jTextField1KeyReleased(evt);
             }
         });
 
@@ -289,6 +312,13 @@ public class GeneLitJFrame extends javax.swing.JFrame {
             }
         });
 
+        jButton8.setText("Select All");
+        jButton8.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButton8ActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
@@ -310,7 +340,8 @@ public class GeneLitJFrame extends javax.swing.JFrame {
                         .addComponent(jButton4))
                     .addComponent(jButton6, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jButton5, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jButton7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                    .addComponent(jButton7, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jButton8, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 575, Short.MAX_VALUE)
                 .addContainerGap())
@@ -322,7 +353,6 @@ public class GeneLitJFrame extends javax.swing.JFrame {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(jScrollPane2, javax.swing.GroupLayout.DEFAULT_SIZE, 414, Short.MAX_VALUE)
                     .addGroup(layout.createSequentialGroup()
-                        .addGap(19, 19, 19)
                         .addComponent(jLabel1)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(jComboBox1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -330,9 +360,11 @@ public class GeneLitJFrame extends javax.swing.JFrame {
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                             .addComponent(jButton1)
                             .addComponent(jButton4))
-                        .addGap(50, 50, 50)
-                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 121, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 157, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jButton8)
+                        .addGap(9, 9, 9)
                         .addComponent(jTextField1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
@@ -372,8 +404,18 @@ public class GeneLitJFrame extends javax.swing.JFrame {
     }
 
     private void jButton2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton2ActionPerformed
+        doAddGene();
+    }
+
+    public void doAddGene() {
         String s = jTextField1.getText();
+        if (s.isEmpty()) {
+            return;
+        }
+
         DefaultListModel slm = (DefaultListModel) jList1.getModel();
+        ArrayList<Object> myList = new ArrayList<Object>(Arrays.asList(slm.toArray()));
+        System.out.println("List: "+myList.toString());
 
         s = s.toUpperCase();
         String glist = jComboBox1.getSelectedItem().toString();
@@ -381,12 +423,16 @@ public class GeneLitJFrame extends javax.swing.JFrame {
 
         if (orfList.keySet().contains(s)) {
             myOrf = s;
-            slm.addElement(s);
+            if (!myList.contains(s)) {
+                slm.addElement(s);
+            }
         } else {
             for (String orf : orfList.keySet()) {
                 if (orfList.get(orf).equals(s)) {
                     myOrf = orf;
-                    slm.addElement(orf);
+                    if (!myList.contains(orf)) {
+                        slm.addElement(orf);
+                    }
                 }
             }
         }
@@ -414,6 +460,7 @@ public class GeneLitJFrame extends javax.swing.JFrame {
         System.out.println(geneLists.toString());
 
         jList1.setModel(slm);
+        jList1.setSelectedValue(myOrf, true);
     }//GEN-LAST:event_jButton2ActionPerformed
 
     private void jButton3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton3ActionPerformed
@@ -452,6 +499,11 @@ public class GeneLitJFrame extends javax.swing.JFrame {
 
     public void updateTable() {
 
+        List sortKeys = null;
+        if (jTable1.getRowSorter() != null) {
+            sortKeys = jTable1.getRowSorter().getSortKeys();
+        }
+
         int[] sels = jList1.getSelectedIndices();
         DefaultListModel dlm = (DefaultListModel) jList1.getModel();
 
@@ -460,7 +512,9 @@ public class GeneLitJFrame extends javax.swing.JFrame {
 
         for (int i : sels) {
             String s = dlm.getElementAt(i).toString();
-            j += geneMap.get(s).size();
+            if (geneMap.containsKey(s)) {
+                j += geneMap.get(s).size();
+            }
         }
 
         Object[][] tabdata = new Object[j][4];
@@ -470,20 +524,22 @@ public class GeneLitJFrame extends javax.swing.JFrame {
             String s = dlm.getElementAt(i).toString();
             ArrayList<Integer> pubs2 = geneMap.get(s);
 
-            for (Integer ii : pubs2) {
-                String newp = "New";
-                ArrayList<Integer> rps = readPapers.get(s);
-                if (rps != null) {
-                    if (rps.contains(ii)) {
-                        newp = "Old";
+            if (!pubs.isEmpty()) {
+                for (Integer ii : pubs2) {
+                    String newp = "New";
+                    ArrayList<Integer> rps = readPapers.get(s);
+                    if (rps != null) {
+                        if (rps.contains(ii)) {
+                            newp = "Old";
+                        }
                     }
-                }
 
-                tabdata[cnt][0] = s;
-                tabdata[cnt][1] = ii;
-                tabdata[cnt][2] = pubs.get(ii);
-                tabdata[cnt][3] = newp;
-                cnt++;
+                    tabdata[cnt][0] = s;
+                    tabdata[cnt][1] = ii;
+                    tabdata[cnt][2] = pubs.get(ii);
+                    tabdata[cnt][3] = newp;
+                    cnt++;
+                }
             }
         }
 
@@ -506,7 +562,37 @@ public class GeneLitJFrame extends javax.swing.JFrame {
         };
 
         jTable1.setModel(tab);
+
+        TableColumnModel tcm = jTable1.getColumnModel();
+        for (int i = 0; i < tcm.getColumnCount(); i++) {
+            switch (i) {
+                case 2:
+                    tcm.getColumn(i).setPreferredWidth(200);
+                    break;
+                default:
+                    tcm.getColumn(i).setPreferredWidth(10);
+
+            }
+        }
+
+        jTable1.setColumnModel(tcm);
+
+        if (sortKeys == null) {
+            ArrayList<SortKey> list = new ArrayList<SortKey>();
+            list.add(new RowSorter.SortKey(3, SortOrder.ASCENDING));
+            list.add(new RowSorter.SortKey(1, SortOrder.DESCENDING));
+
+            if (jTable1.getRowSorter() == null) {
+                jTable1.setAutoCreateRowSorter(true);
+            }
+
+            jTable1.getRowSorter().setSortKeys(list);
+        }
+
         jTable1.setRowSorter(new TableRowSorter(tab));
+        if (sortKeys != null) {
+            jTable1.getRowSorter().setSortKeys(sortKeys);
+        }
 
     }//GEN-LAST:event_jList1ValueChanged
 
@@ -611,6 +697,16 @@ public class GeneLitJFrame extends javax.swing.JFrame {
         updateReadList();
         updateTable();
     }//GEN-LAST:event_jButton6ActionPerformed
+
+    private void jTextField1KeyReleased(java.awt.event.KeyEvent evt) {//GEN-FIRST:event_jTextField1KeyReleased
+        if (evt.getKeyCode() == KeyEvent.VK_ENTER) {
+            doAddGene();
+        }
+    }//GEN-LAST:event_jTextField1KeyReleased
+
+    private void jButton8ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton8ActionPerformed
+        jList1.setSelectionInterval(0, jList1.getModel().getSize()-1);
+    }//GEN-LAST:event_jButton8ActionPerformed
 
     public void updateReadList() {
         for (String s : readPapers.keySet()) {
@@ -811,6 +907,17 @@ public class GeneLitJFrame extends javax.swing.JFrame {
             }
         }
 
+//        int max = 0;
+//        String morf = "";
+//        for (String als : geneMap.keySet()) {
+//            if (geneMap.get(als).size() > max && !als.isEmpty()) {
+//                max = geneMap.get(als).size();
+//                morf = als;
+//            }
+//
+//        }
+//        System.out.println(morf + ": " + max);
+        updateTable();
     }
 
     private void updatedatafiles2() {
@@ -914,6 +1021,7 @@ public class GeneLitJFrame extends javax.swing.JFrame {
     private javax.swing.JButton jButton5;
     private javax.swing.JButton jButton6;
     private javax.swing.JButton jButton7;
+    private javax.swing.JButton jButton8;
     private javax.swing.JComboBox jComboBox1;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JList jList1;
